@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chat con Gaia 🌍</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; max-width: 700px; margin: 40px auto; background:#edf7ee; color:#1f3b2d; padding:20px;}
+    h1 { text-align:center; color:#2e8b57; }
+    #chat-container { border:1px solid #a2d2a8; border-radius:10px; background:#fff; box-shadow:0 4px 8px rgba(0,0,0,.05); }
+    #chat-box { height: 450px; overflow-y:auto; padding: 16px; display:flex; flex-direction:column; gap:8px;}
+    .message { max-width:75%; padding:10px 14px; border-radius:16px; line-height:1.45; word-wrap:break-word;}
+    .user { background:#0084ff; color:#fff; align-self:flex-end;}
+    .assistant { background:#e6f3e9; color:#1a3a1f; align-self:flex-start;}
+    .error { background:#ffebe5; color:#b00020;}
+    .typing { font-style:italic; opacity:.8;}
+    form { display:flex; gap:8px; padding:10px; border-top:1px solid #e6e6e6; background:#fafafa;}
+    input { flex:1; padding:12px; border:1px solid #c9c9c9; border-radius:20px; font-size:16px; outline:none;}
+    button { padding:12px 18px; border:none; border-radius:20px; background:#2e8b57; color:#fff; font-size:16px; cursor:pointer;}
+    button:disabled { background:#9cc8a7; cursor:not-allowed; }
+  </style>
+</head>
+<body>
+  <h1>🌍 Chatea con Gaia</h1>
+  <div id="chat-container">
+    <div id="chat-box"></div>
+    <form id="chat-form">
+      <input id="user-input" type="text" placeholder="Escribe tu idea aquí..." autocomplete="off" required/>
+      <button id="send-button" type="submit">Enviar</button>
+    </form>
+  </div>
+
+  <script>
+    const chatForm = document.getElementById('chat-form');
+    const userInput = document.getElementById('user-input');
+    const chatBox   = document.getElementById('chat-box');
+    const sendBtn   = document.getElementById('send-button');
+
+    let conversationHistory = []; // {role:'user'|'assistant', text:'...'}
+
+    function addMessage(text, role, extraClass='') {
+      const el = document.createElement('div');
+      el.classList.add('message');
+      if (role === 'user') el.classList.add('user'); else el.classList.add('assistant');
+      if (extraClass) el.classList.add(extraClass);
+      el.innerHTML = (text || '').replace(/\n/g, '<br>');
+      chatBox.appendChild(el);
+      chatBox.scrollTop = chatBox.scrollHeight;
+      return el;
+    }
+
+    // Mensaje inicial (igual que tu prompt)
+    window.onload = () => {
+      const welcome = "¡Hola! Soy Gaia 🌍. Pensemos en los incendios de la Isla Canguro (Australia). Si hubieras estado a cargo de la prevención, ¿qué idea aplicarías para reducir el impacto?";
+      addMessage(welcome, 'assistant');
+      conversationHistory.push({ role: 'assistant', text: welcome });
+    };
+
+    chatForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = userInput.value.trim();
+      if (!msg) return;
+
+      userInput.disabled = true; sendBtn.disabled = true;
+
+      addMessage(msg, 'user');
+      conversationHistory.push({ role: 'user', text: msg });
+      userInput.value = '';
+
+      const typing = addMessage("Gaia está reflexionando…", 'assistant', 'typing');
+
+      try {
+        const resp = await fetch('/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: msg, history: conversationHistory })
+        });
+
+        chatBox.removeChild(typing);
+
+        const data = await resp.json();
+        if (!resp.ok) {
+          addMessage(` ${data.error || data.reply || 'Hubo un problema.'}`, 'assistant', 'error');
+          return;
+        }
+
+        addMessage(data.reply, 'assistant');
+        conversationHistory.push({ role: 'assistant', text: data.reply });
+
+      } catch (err) {
+        chatBox.removeChild(typing);
+        addMessage(` Error de red: ${err.message}`, 'assistant', 'error');
+      } finally {
+        userInput.disabled = false; sendBtn.disabled = false; userInput.focus();
+      }
+    });
+  </script>
+</body>
+</html>
