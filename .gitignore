@@ -1,0 +1,21 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+.env
+
+# Node.js
+frontend/Inicio/node_modules/
+frontend/Inicio/dist/
+frontend/Inicio/.vite/
+
+frontend/Australia/node_modules/
+frontend/Australia/dist/
+frontend/Australia/.vite/
+
+# Archivos de sistema operativo y editores
+.DS_Store
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
