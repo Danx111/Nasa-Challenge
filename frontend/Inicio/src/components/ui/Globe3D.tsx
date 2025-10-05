@@ -2,6 +2,10 @@ import { useRef, useEffect } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Sphere } from "@react-three/drei";
 import * as THREE from "three";
+import earthDayTexture from "@/assets/earth-day.jpg";
+import earthBumpTexture from "@/assets/earth-bump.jpg";
+import earthWaterTexture from "@/assets/earth-water.png";
+import earthCloudsTexture from "@/assets/earth-clouds.png";
 
 interface Globe3DProps {
   targetLocation: { lat: number; lon: number } | null;
@@ -10,8 +14,8 @@ interface Globe3DProps {
 
 function Earth({ targetLocation, onAnimationComplete }: Globe3DProps) {
   const meshRef = useRef<THREE.Mesh>(null);
+  const cloudsRef = useRef<THREE.Mesh>(null);
   const markerRef = useRef<THREE.Mesh>(null);
-  const { camera } = useThree();
   const animatingRef = useRef(false);
 
   useEffect(() => {
@@ -46,6 +50,10 @@ function Earth({ targetLocation, onAnimationComplete }: Globe3DProps) {
           meshRef.current.rotation.y = startRotationY + (targetRotationY - startRotationY) * eased;
         }
 
+        if (cloudsRef.current) {
+          cloudsRef.current.rotation.y = startRotationY + (targetRotationY - startRotationY) * eased;
+        }
+
         if (progress < 1) {
           requestAnimationFrame(animateRotation);
         } else {
@@ -61,85 +69,61 @@ function Earth({ targetLocation, onAnimationComplete }: Globe3DProps) {
   }, [targetLocation, onAnimationComplete]);
 
   useFrame(() => {
-    if (!animatingRef.current && meshRef.current) {
-      meshRef.current.rotation.y += 0.001;
+    if (!animatingRef.current) {
+      if (meshRef.current) {
+        meshRef.current.rotation.y += 0.001;
+      }
+      if (cloudsRef.current) {
+        cloudsRef.current.rotation.y += 0.0012;
+      }
     }
   });
 
+  // Load textures
+  const textureLoader = new THREE.TextureLoader();
+  const dayMap = textureLoader.load(earthDayTexture);
+  const bumpMap = textureLoader.load(earthBumpTexture);
+  const specularMap = textureLoader.load(earthWaterTexture);
+  const cloudsMap = textureLoader.load(earthCloudsTexture);
+
   return (
-    <group>
-      <Sphere ref={meshRef} args={[2, 64, 64]}>
-        <meshStandardMaterial
-          color="#1e3a8a"
-          roughness={0.7}
-          metalness={0.1}
-        >
-          <primitive attach="map" object={createEarthTexture()} />
-        </meshStandardMaterial>
+    <group rotation={[0, -Math.PI / 2, 0]}>
+      {/* Earth sphere */}
+      <Sphere ref={meshRef} args={[2, 128, 128]}>
+        <meshPhongMaterial
+          map={dayMap}
+          bumpMap={bumpMap}
+          bumpScale={0.05}
+          specularMap={specularMap}
+          specular={new THREE.Color(0x333333)}
+          shininess={25}
+        />
+      </Sphere>
+      
+      {/* Clouds layer */}
+      <Sphere ref={cloudsRef} args={[2.02, 64, 64]}>
+        <meshPhongMaterial
+          map={cloudsMap}
+          transparent={true}
+          opacity={0.8}
+          depthWrite={false}
+        />
       </Sphere>
       
       {/* Location marker */}
       <mesh ref={markerRef} visible={false}>
         <sphereGeometry args={[0.08, 16, 16]} />
-        <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={0.5} />
+        <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={0.8} />
       </mesh>
     </group>
   );
 }
 
-function createEarthTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 2048;
-  canvas.height = 1024;
-  const ctx = canvas.getContext('2d')!;
-  
-  // Ocean
-  ctx.fillStyle = '#1e3a8a';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  
-  // Simple continents (stylized)
-  ctx.fillStyle = '#22c55e';
-  
-  // North America
-  ctx.beginPath();
-  ctx.ellipse(400, 350, 180, 200, 0.3, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // South America
-  ctx.beginPath();
-  ctx.ellipse(500, 650, 120, 180, 0.2, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Europe
-  ctx.beginPath();
-  ctx.ellipse(1050, 300, 100, 80, 0, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Africa
-  ctx.beginPath();
-  ctx.ellipse(1080, 550, 150, 200, 0, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Asia
-  ctx.beginPath();
-  ctx.ellipse(1500, 350, 250, 180, 0, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Australia
-  ctx.beginPath();
-  ctx.ellipse(1650, 700, 100, 80, 0, 0, Math.PI * 2);
-  ctx.fill();
-  
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.needsUpdate = true;
-  return texture;
-}
-
 export default function Globe3D({ targetLocation, onAnimationComplete }: Globe3DProps) {
   return (
     <Canvas camera={{ position: [0, 0, 6], fov: 45 }}>
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[5, 3, 5]} intensity={1} />
+      <ambientLight intensity={0.2} />
+      <directionalLight position={[5, 3, 5]} intensity={1.5} color="#ffffff" />
       <Earth targetLocation={targetLocation} onAnimationComplete={onAnimationComplete} />
       <OrbitControls enableZoom={false} enablePan={false} />
     </Canvas>
